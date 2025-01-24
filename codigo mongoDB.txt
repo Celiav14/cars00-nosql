@@ -1,0 +1,138 @@
+db.cars0.find({})
+   .projection({})
+   .sort({})
+   .limit(0)
+   
+
+//Numero de coches
+db.cars0.find().count()
+
+//Nombre y apellido
+db.cars0.find({}, { "First Name": 1, "Last Name": 1 });
+
+//Filtramos por marca y modelo específico
+db.cars0.find({ "Car Brand": "Toyota", "Car Model": "Corolla" });
+
+//Filtramos coches fabricados despues de 1980
+db.cars0.find({ "Year of Manufacture": { $gt: 1980 } });
+
+//Insertamos mas informacion
+db.cars0.insertOne({
+    "First Name": "Celia",
+    "Last Name": "Villaverde",
+    "Country": "España",
+    "Car Brand": "Renault",
+    "Car Model": "Kadjar",
+    "Car Color": "White",
+    "Year of Manufacture": 2020,
+    "Credit Card Type": "Visa"
+});
+
+//Actualizamos el color a negro para la persona llamada "Celia"
+db.cars0.updateOne(
+    { "First Name": "Celia" }, 
+    { $set: { "Car Color": "Black" } }
+);
+
+//Los 10 nombres mas repetidos de los propietarios
+db.cars0.aggregate([
+    { $group: { _id: "$First Name", Count: { $sum: 1 } } }, 
+    { $sort: { Count: -1 } },                              
+    { $limit: 10 }                                          
+]);
+
+//Los 3 apellidos mas repetidos entre los propietarios
+db.cars0.aggregate([
+    { $group: { _id: "$Last Name", Count: { $sum: 1 } } },
+    { $sort: { Count: -1 } },
+    { $limit: 3 }
+]);
+
+//Las 5 marcas de coches mas comunes
+db.cars0.aggregate([
+    { $group: { _id: "$Car Brand", Total: { $sum: 1 } } },
+    { $sort: { Total: -1 } },
+    { $limit: 5 }
+])
+
+
+////Agrupacion de coches segun la marca, ademas contamos la cantidad de coches existentes por marca
+db.cars0.aggregate([
+    { $group: { _id: "$Car Brand", Total: { $sum: 1 } } },
+    { $sort: { Total: -1 } }
+]);
+
+//Coche mas comprado por cada año de fabricacion, ademas nos indica cuantos coches de esa marca se han comprado
+db.cars0.aggregate([
+    { 
+        $group: { 
+            _id: { Year: "$Year of Manufacture", Car: "$Car Brand" }, 
+            Count: { $sum: 1 }                                       
+        }
+    },
+    { 
+        $sort: { "_id.Year": 1, Count: -1 }                         
+    },
+    { 
+        $group: { 
+            _id: "$_id.Year",                                       
+            MostPopularCar: { $first: "$_id.Car" },                 
+            Count: { $first: "$Count" }                             
+        }
+    },
+    { $sort: { _id: 1 } }                                           
+]);
+
+
+//Calculamos el numero de colores diferentes asociado a cada modelo de coche
+db.cars0.aggregate([
+    { $group: { _id: "$Car Model", Colors: { $addToSet: "$Car Color" } } },
+    { $project: { NumColors: { $size: "$Colors" } } },
+    { $sort: { NumColors: -1 } }
+]);
+
+
+//Calculamos el promedio de coches por pais y color
+db.cars0.aggregate([
+    { $unwind: "$Car Color" },  
+    { 
+        $group: { 
+            _id: { country: "$Country", color: "$Car Color" },  
+            count: { $sum: 1 }  
+        }
+    },
+    { 
+        $project: { 
+            _id: 0, 
+            Country: "$_id.country", 
+            CarColor: "$_id.color", 
+            Count: "$count"  
+        }
+    },
+    { $sort: { Count: -1 } }  
+]);
+
+
+//Actualizamos los colores de la marca Toyota a color azul
+db.cars0.updateMany(
+    { "Car Brand": "Toyota" }, 
+    { $set: { "Car Color": "Blue" } }
+);
+
+
+// Calculamos la cantidad de modelos de coche existentes por cada marca de coche
+db.cars0.aggregate([
+    { $group: { _id: "$Car Brand", models: { $addToSet: "$Car Model" } } },
+    { $project: { _id: 0, CarBrand: "$_id", NumModels: { $size: "$models" } } },
+    { $sort: { NumModels: -1 } }
+]);
+
+//Proyectamos por tipo de pais y tarjeta
+db.cars0.find({}, { "Country": 1, "Credit Card Type": 1, "_id": 0 });
+
+//Ordenamos cuantos coches estan asociados a cada tipo de tarjeta de credito, de forma descendente ( de menor a mayor)
+db.cars0.aggregate([
+    { $group: { _id: "$Credit Card Type", Total: { $sum: 1 } } },
+    { $sort: { Total: 1 } }
+]);
+
